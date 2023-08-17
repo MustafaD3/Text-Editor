@@ -10,7 +10,7 @@ export default class Italic{
         this.toolElement.addEventListener("click",this.event)
         return this.toolElement
     }
-    event(){
+    event = ()=>{
         const italicElement = document.createElement("i")
         this.appendFn(italicElement)
     }

@@ -16,6 +16,8 @@
         align-items: center;
         flex-wrap: wrap;
         gap: 1em;
+        padding-bottom: 1em;
+        border-bottom: 1px solid black;
         #link{
             position: relative;
             #anchor-form{
@@ -25,20 +27,54 @@
             }
         }
     }
+    #content{
+        img{
+            width: 300px;
+            height: 300px;
+            object-fit: contain;
+        }
+    }
     #image-container{
         display: block;
+        text-align: center;
         width: 100%;
+        #uploads{
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 0.5em;
+            #image-container{
+                display: flex;
+                flex-wrap: wrap;
+                justify-content: center;
+                gap: 0.5em;
+                img{
+                    width: 150px;
+                    height: 150px;
+                    object-fit: contain;
+                    border-radius: 15px;
+                }
+            }
+            
+        }
+        > div{
+            margin-top: 0.5em;
+            display: flex;
+            gap: 0.5em;
+            justify-content: center;
+        }
         #image-preview-container{
+            margin-top: 0.5em;
             display: flex;
             flex-wrap: wrap;
             gap: 0.5em;
             justify-content: center;
-            img{
-                width: 200px;
-                height: 200px;
-                object-fit: contain;
-                border-radius: 15px;
-            }
+                img{
+                    width: 200px;
+                    height: 200px;
+                    object-fit: contain;
+                    border-radius: 15px;
+                }
         }
     }
 }

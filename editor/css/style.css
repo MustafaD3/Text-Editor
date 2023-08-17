@@ -18,6 +18,8 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 1em;
+  padding-bottom: 1em;
+  border-bottom: 1px solid black;
 }
 #editor #toolbar #link {
   position: relative;
@@ -27,11 +29,44 @@
   gap: 0.5em;
   display: none;
 }
+#editor #content img {
+  width: 300px;
+  height: 300px;
+  -o-object-fit: contain;
+     object-fit: contain;
+}
 #editor #image-container {
   display: block;
+  text-align: center;
   width: 100%;
 }
+#editor #image-container #uploads {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 0.5em;
+}
+#editor #image-container #uploads #image-container {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5em;
+}
+#editor #image-container #uploads #image-container img {
+  width: 150px;
+  height: 150px;
+  -o-object-fit: contain;
+     object-fit: contain;
+  border-radius: 15px;
+}
+#editor #image-container > div {
+  margin-top: 0.5em;
+  display: flex;
+  gap: 0.5em;
+  justify-content: center;
+}
 #editor #image-container #image-preview-container {
+  margin-top: 0.5em;
   display: flex;
   flex-wrap: wrap;
   gap: 0.5em;

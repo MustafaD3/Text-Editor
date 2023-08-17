@@ -1,11 +1,11 @@
 import Select from "./utils/select.js"
-const mustParameter = ["id","toolbarItems","stylePath"]
+const mustParameter = ["id","toolbarItems","sendFn","uploadsEndpoint","filePath"]
 export default class editorInitialized extends Select{
     constructor(config = {}){
         super()
         this.editor = {}
         try {
-            if(typeof config !== "object")throw {type:"typeError",variable:"Config:"+typeof config}
+            if(typeof config !== "object")throw {type:"typeError",dataType:"Object",variable:"Config:"+typeof config}
             for(const x of mustParameter){
                 if(!config.hasOwnProperty(x)){
                     throw {type:"undefinedProperty",property:""+x}
@@ -16,16 +16,18 @@ export default class editorInitialized extends Select{
                 }
             }
             for(const [key,value] of Object.entries(config))this.editor[key] = value
-            if(typeof this.editor.toolbarItems !== "object")throw {type:"typeError",variable:"toolbarItems:"+typeof config.toolbarItems}
+            if(typeof this.editor.toolbarItems !== "object")throw {type:"typeError",dataType:"Object",variable:"toolbarItems:"+typeof config.toolbarItems}
+            if(typeof this.editor.sendFn !== "function") throw {type:"typeError",dataType:"Function",variable:"sendFn:"+typeof this.editor.sendFn}
         } catch (error) {
-            if(error.type === "typeError")console.error("Parameter Must Be of Type Object You Sent " + error.variable)
+            if(error.type === "typeError")console.error("Parameter Must Be of Type "+ error.dataType +" You Sent " + error.variable)
             if(error.type === "undefinedProperty")console.error("Property:"+error.property+" Is Not Defined")
             return
         }
         if(document.querySelector("#"+this.editor.id)){
             this.editor.element = document.querySelector("#"+this.editor.id)
-            this.focusNodeNumber = 0
+            this.focusNodeNumber = 1
             this.cursorPosition = 0
+            this.textNode = 0
             this.cursorNode = null
             this.bootstrapCDN()
             this.editorStart()
@@ -44,15 +46,23 @@ export default class editorInitialized extends Select{
         link.crossOrigin = "anonymous"
         document.head.append(link)
     }
-    editorStart(){
+    async editorStart(){
         this.editor.toolbar = document.createElement("div")
         this.editor.content = document.createElement("div")
+        this.editor.sendButton = document.createElement("input")
+        this.editor.sendButton.classList.add("btn","btn-success")
+        this.editor.sendButton.type = "submit"
         this.editor.toolbar.id = "toolbar"
         this.editor.content.id = "content"
         this.WindowSelectEvent()
+        this.editor.toolbar.append(this.title())
         for(const x of this.editor.toolbarItems){
             if(x.name === "Image"){
-                this.editor.toolbar.append(new x(this.appendImage))
+                this.editor.toolbar.append(await new x(this.appendImage,this.editor.uploadsEndpoint,this.editor.filePath).init())
+                continue
+            }
+            if(x.name === "Alignment"){
+                this.editor.toolbar.append(new x(this.alignment.bind(this)))
                 continue
             }
             this.editor.toolbar.append(new x(this.append))
@@ -60,15 +70,16 @@ export default class editorInitialized extends Select{
         const row = this.newRow()
         this.cursorNodeUpdate(row)
         this.editor.content.append(row)
-        this.editor.element.append(this.editor.toolbar,this.editor.content)
+        this.editor.element.append(this.editor.toolbar,this.editor.content,this.editor.sendButton)
     }
     editorStyle(){
-            if(this.editor.stylePath){
-                const styleDocument = document.createElement("link")
-                styleDocument.rel = "stylesheet"
-                styleDocument.href = this.editor.stylePath
-                document.head.append(styleDocument)
-            }
+        //Style File
+            const styleDocument = document.createElement("link")
+            styleDocument.rel = "stylesheet"
+            styleDocument.href = "./css/style.css"
+            document.head.append(styleDocument)
+        //End
+        //Width Height Properties
           if(this.editor.width && this.editor.height){
             this.editor.element.style.width = this.editor.width
             this.editor.element.style.minHeight = this.editor.height
@@ -77,9 +88,18 @@ export default class editorInitialized extends Select{
             this.editor.element.style.width = window.innerWidth
             this.editor.element.style.minHeight = window.innerHeight
           }
+        //End
+        //Alignment Properties
           if(this.editor.alignment && this.editor.alignment === "center"){
             this.editor.element.style.margin = "0px auto"
           }
+          else if(this.editor.alignment && this.editor.alignment === "left"){
+            this.editor.element.style.margin = "0px"
+          }
+          else if(this.editor.alignment && this.editor.alignment === "right"){
+            this.editor.element.style.margin = "0px 0px 0px auto"
+          }
+        //End
     }
     editorEvent(){
         this.editor.content.addEventListener("keydown",(e)=>{
@@ -118,6 +138,7 @@ export default class editorInitialized extends Select{
                 const row = this.newRow(this.cutText())
                 this.editor.content.append(row)
                 this.cursorAllUpdate(row.getAttribute("node"),row,row.innerText.length)
+                this.textNodeFilter = [...this.cursorNode.childNodes].filter((x)=>x.nodeType === 3)
                 row.focus()
                 this.setCaret()
                 return
@@ -131,15 +152,35 @@ export default class editorInitialized extends Select{
             this.cursorPosition = range.startOffset
             if(range.commonAncestorContainer.tagName === "DIV"){
                 this.cursorNodeUpdate( range.startContainer)
-            }
-            else{
-                this.cursorNodeUpdate(range.startContainer.parentElement)
-            }
-            let parent = range.commonAncestorContainer.parentElement
-            while(parent.tagName.toLowerCase() !== "div"){
+                this.focusNodeNumberUpdate(this.cursorNode.getAttribute("node"))
+            }else{
+                let parent = range.commonAncestorContainer.parentElement
+
+                while(parent.tagName.toLowerCase() !== "div"){
                     parent = parent.parentElement
-                    this.focusNodeNumberUpdate(parent.getAttribute("node"))
-            } 
+                }
+                this.focusNodeNumberUpdate(parent.getAttribute("node"))
+            }
+            
+            this.textNodeFilter = [...this.cursorNode.childNodes].filter((x)=>x.nodeType === 3)
+            this.textNode = Array.prototype.indexOf.call(this.textNodeFilter, range.startContainer)
+        })
+        this.editor.element.addEventListener("submit",(e)=>{
+            e.preventDefault()
+            const title = e.target.querySelector("#title")
+            const filesInput = e.target.querySelector("#image-container input[type=file]") 
+            const content = e.target.querySelector("#content")
+            for(const x of [...content.querySelectorAll("img")]){
+                const relPath = x.getAttribute("relsrc")
+                x.src = relPath
+                x.removeAttribute("relsrc")
+            }
+            this.editor.sendFn({title:title.value,content:content.innerHTML,files:filesInput.files})
+            content.innerHTML = ""
+            title.value = ""
+            filesInput.value = ""
+            e.target.querySelector("#image-preview-container").innerHTML = ""
+            content.append(this.newRow())
         })
     }
     newRow(text){
@@ -147,20 +188,26 @@ export default class editorInitialized extends Select{
         const row = document.createElement("div")
         row.setAttribute("node",count)
         row.contentEditable = true
-        row.innerHTML = text ? text:null
+        row.innerHTML = text ? text:""
         this.startContainer = row
         return row
     }
     travelRow(){
         this.cursorNodeUpdate(this.editor.content.children[this.focusNodeNumber - 1])
-        this.cursorPositionUpdate(this.cursorNode.innerText.length)
+        this.textNodeFilter = [...this.cursorNode.childNodes].filter((x)=>x.nodeType === 3)
+        if(this.textNodeFilter[this.textNodeFilter.length - 1]){
+            this.cursorPositionUpdate(this.textNodeFilter[this.textNodeFilter.length - 1].textContent.length)
+        }
+        else{
+            this.cursorPositionUpdate(this.cursorNode.innerText.length)
+        }
         this.cursorNode.focus()
         this.setCaret()
     }
     cutText(){
-        if(this.cursorPosition >= 0){
-            const text = this.cursorNode.innerText.slice(this.cursorPosition)
-            this.cursorNode.innerText = this.cursorNode.innerText.slice(0,this.cursorPosition)
+        if(this.cursorPosition >= 0 && this.textNode >= 0){
+            const text = this.textNodeFilter[this.textNode].textContent.slice(this.cursorPosition)
+            this.textNodeFilter[this.textNode].textContent = this.textNodeFilter[this.textNode].textContent.slice(0,this.cursorPosition)
             return text 
         }
         return ""
@@ -168,11 +215,14 @@ export default class editorInitialized extends Select{
     setCaret() {
         const range = document.createRange()
         const sel = window.getSelection()
-        if(this.cursorNode.childNodes[0] && this.cursorNode.childNodes[0].nodeType === 3)range.setStart(this.cursorNode.childNodes[0], this.cursorPosition)
+        if(this.textNodeFilter[this.textNodeFilter.length - 1])range.setStart(this.textNodeFilter[this.textNodeFilter.length - 1], this.cursorPosition)
         else range.setStart(this.cursorNode, this.cursorPosition)
         range.collapse(true)
         sel.removeAllRanges()
         sel.addRange(range)
+    }
+    alignment(alignment){
+        this.editor.content.childNodes[this.focusNodeNumber - 1].style.textAlign = alignment.text
     }
     focusNodeNumberUpdate(focusNodeNumber){
         this.focusNodeNumber = focusNodeNumber
@@ -188,7 +238,16 @@ export default class editorInitialized extends Select{
         this.cursorNode = node
         this.cursorPosition = position
     }
-    
+    title(){
+        const toolElement = document.createElement("input")
+        toolElement.type = "text"
+        toolElement.name = "title"
+        toolElement.id = "title"
+        toolElement.placeholder = "Title"
+        toolElement.classList.add("form-control")
+        toolElement.required = true
+        return toolElement
+    }
     
     
 }

@@ -9,7 +9,7 @@ export default class Link{
         this.form.id = "anchor-form"
         this.form.innerHTML = 
         `<input placeholder="Anchor" name="anchor" >
-        <button class="btn btn-warning" id="add-button">Add</button>
+        <button type="button" class="btn btn-warning" id="add-button">Add</button>
         `
         this.form.querySelector("#add-button").addEventListener("click",this.event)
         this.toolElement.setAttribute("role",'button')
