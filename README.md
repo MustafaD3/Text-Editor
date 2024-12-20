@@ -12,5 +12,3 @@ import editorInitialized from "./editor.js";
         filePath:""//Here You Must Specify Where to Upload Images
     })
 ```
-
-Update in Progress...
